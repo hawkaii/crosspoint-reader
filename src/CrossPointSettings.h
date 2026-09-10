@@ -205,6 +205,10 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t sleepScreenCoverMode = FIT;
   // Sleep screen cover filter
   uint8_t sleepScreenCoverFilter = NO_FILTER;
+  // Wallpaper sync: pull /sleep.bmp from a host on the LAN at sleep entry.
+  // Off by default — it is the only feature that brings WiFi up on its own.
+  uint8_t wallpaperSyncEnabled = 0;
+  char wallpaperSyncUrl[128] = "";
   // Status bar settings
   uint8_t statusBarChapterPageCount = 1;
   uint8_t statusBarBookProgressPercentage = 1;
