@@ -39,6 +39,12 @@ void trim(std::string& value) {
 }
 
 bool connectSavedWifi() {
+  // Nothing loads the credential store at boot — WifiSelectionActivity does it
+  // lazily when you open the WiFi screen (see its onEnter). On a boot that never
+  // visits that screen the store is empty, so load it here or every sync bails
+  // with "no last-connected network" while wifi.json sits on the card, populated.
+  WIFI_STORE.loadFromFile();
+
   const std::string ssid = WIFI_STORE.getLastConnectedSsid();
   if (ssid.empty()) {
     LOG_INF("WLP", "No last-connected network saved; skipping wallpaper sync");
