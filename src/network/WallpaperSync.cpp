@@ -6,6 +6,8 @@
 #include <Logging.h>
 #include <WiFi.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <string>
 
 #include "CrossPointSettings.h"
@@ -23,6 +25,8 @@ constexpr char TMP_PATH[] = "/sleep.bmp.tmp";
 // The user is waiting for the device to sleep, so fail fast when the network is
 // not the one at home. A failed association costs this much and no more.
 constexpr uint32_t CONNECT_TIMEOUT_MS = 8000;
+// The fallback already cost a scan, so give the second attempt a tighter budget.
+constexpr uint32_t FALLBACK_CONNECT_TIMEOUT_MS = 6000;
 constexpr size_t MAX_VERSION_LEN = 64;
 
 std::string buildUrl(const char* base, const char* leaf) {
@@ -38,42 +42,93 @@ void trim(std::string& value) {
   value.erase(std::find_if(value.rbegin(), value.rend(), notSpace).base(), value.end());
 }
 
+bool waitForConnection(uint32_t timeoutMs) {
+  const uint32_t deadline = millis() + timeoutMs;
+  while (static_cast<int32_t>(deadline - millis()) > 0) {
+    if (WiFi.status() == WL_CONNECTED) return true;
+    delay(100);
+  }
+  return false;
+}
+
+bool tryCredential(const WifiCredential& credential, uint32_t timeoutMs) {
+  WiFi.disconnect(true);
+  delay(50);
+  if (credential.password.empty()) {
+    WiFi.begin(credential.ssid.c_str());
+  } else {
+    WiFi.begin(credential.ssid.c_str(), credential.password.c_str());
+  }
+  if (!waitForConnection(timeoutMs)) return false;
+  LOG_INF("WLP", "Connected to '%s' as %s", credential.ssid.c_str(), WiFi.localIP().toString().c_str());
+  return true;
+}
+
+// Pick whichever saved network is actually in range and strongest, the way the
+// WiFi screen's auto-connect does. Without this the device keeps retrying the
+// last network it joined — a cafe, say — on every sleep once you are home
+// again, because lastConnectedSsid only changes from the WiFi screen.
+bool connectBestSavedInRange(const std::string& alreadyTried) {
+  WiFi.disconnect(true);
+  const int16_t found = WiFi.scanNetworks();
+  if (found <= 0) {
+    WiFi.scanDelete();
+    LOG_INF("WLP", "Scan found no networks");
+    return false;
+  }
+
+  std::string bestSsid;
+  int32_t bestRssi = INT32_MIN;
+  for (int16_t i = 0; i < found; i++) {
+    const std::string ssid = WiFi.SSID(i).c_str();
+    if (ssid.empty() || ssid == alreadyTried) continue;
+    if (!WIFI_STORE.hasSavedCredential(ssid)) continue;
+    if (WiFi.RSSI(i) > bestRssi) {
+      bestRssi = WiFi.RSSI(i);
+      bestSsid = ssid;
+    }
+  }
+  WiFi.scanDelete();
+
+  if (bestSsid.empty()) {
+    LOG_INF("WLP", "No saved network in range");
+    return false;
+  }
+  const auto credential = WIFI_STORE.findCredential(bestSsid);
+  if (!credential) return false;
+
+  LOG_INF("WLP", "Trying saved network '%s' (%d dBm)", bestSsid.c_str(), static_cast<int>(bestRssi));
+  if (!tryCredential(*credential, FALLBACK_CONNECT_TIMEOUT_MS)) return false;
+
+  // Remember it, so the next sleep takes the fast path instead of scanning again.
+  WIFI_STORE.setLastConnectedSsid(bestSsid);
+  return true;
+}
+
 bool connectSavedWifi() {
   // Nothing loads the credential store at boot — WifiSelectionActivity does it
   // lazily when you open the WiFi screen (see its onEnter). On a boot that never
   // visits that screen the store is empty, so load it here or every sync bails
   // with "no last-connected network" while wifi.json sits on the card, populated.
   WIFI_STORE.loadFromFile();
-
-  const std::string ssid = WIFI_STORE.getLastConnectedSsid();
-  if (ssid.empty()) {
-    LOG_INF("WLP", "No last-connected network saved; skipping wallpaper sync");
-    return false;
-  }
-  const auto credential = WIFI_STORE.findCredential(ssid);
-  if (!credential) {
-    LOG_INF("WLP", "No stored credential for '%s'; skipping", ssid.c_str());
+  if (WIFI_STORE.getCredentialCount() == 0) {
+    LOG_INF("WLP", "No saved networks; skipping wallpaper sync");
     return false;
   }
 
   WiFi.persistent(false);  // Credentials live in WifiCredentialStore, not SDK NVS
   WiFi.mode(WIFI_STA);
-  if (credential->password.empty()) {
-    WiFi.begin(ssid.c_str());
-  } else {
-    WiFi.begin(ssid.c_str(), credential->password.c_str());
+
+  // Fast path: the network we used last time, with no scan.
+  const std::string last = WIFI_STORE.getLastConnectedSsid();
+  if (!last.empty()) {
+    if (const auto credential = WIFI_STORE.findCredential(last)) {
+      if (tryCredential(*credential, CONNECT_TIMEOUT_MS)) return true;
+      LOG_INF("WLP", "'%s' unavailable; scanning for another saved network", last.c_str());
+    }
   }
 
-  const uint32_t deadline = millis() + CONNECT_TIMEOUT_MS;
-  while (static_cast<int32_t>(deadline - millis()) > 0) {
-    if (WiFi.status() == WL_CONNECTED) {
-      LOG_INF("WLP", "Connected to '%s' as %s", ssid.c_str(), WiFi.localIP().toString().c_str());
-      return true;
-    }
-    delay(100);
-  }
-  LOG_INF("WLP", "'%s' did not connect within %ums; skipping", ssid.c_str(), CONNECT_TIMEOUT_MS);
-  return false;
+  return connectBestSavedInRange(last);
 }
 
 void shutdownWifi() {
