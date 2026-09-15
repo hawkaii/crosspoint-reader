@@ -15,6 +15,8 @@ class CrossPointState : public PersistableStore<CrossPointState> {
 
   std::string openEpubPath;
   std::string wallpaperVersion;
+  std::string wallpaperResolvedHost;
+  std::string wallpaperResolvedIp;
   uint16_t recentSleepImages[SLEEP_RECENT_COUNT] = {};
   uint8_t recentSleepPos = 0;
   uint8_t recentSleepFill = 0;

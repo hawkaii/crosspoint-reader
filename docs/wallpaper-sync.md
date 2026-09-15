@@ -18,6 +18,15 @@ Off by default. It is the only feature that brings WiFi up on its own.
 
 Both settings are also editable from the web settings UI while in File Transfer.
 
+### Use a hostname, not an IP
+
+The URL may name the host as `something.local` — e.g.
+`http://my-laptop.local:8000`. The device resolves it over mDNS at every sync,
+so the URL keeps working when DHCP hands the host a new address or you move
+between networks. `esp_http_client` cannot resolve `.local` itself, so the sync
+does the lookup and substitutes the address. The last resolved address is cached
+in `state.json` and used if a multicast answer goes missing.
+
 ## When it runs
 
 Only at sleep entry, from `enterDeepSleep()` in `main.cpp`. That is the one
