@@ -51,6 +51,7 @@
 #include "activities/ActivityManager.h"
 #include "activities/settings/SdFirmwareUpdateActivity.h"
 #include "components/UITheme.h"
+#include "network/WallpaperSync.h"
 #include "fontIds.h"
 #include "images/LoadingIcon.h"
 #include "platform/UsbSerialJtagHandoff.h"
@@ -583,6 +584,12 @@ void enterDeepSleep(bool fromTimeout = false, BootDiag::SleepTrigger trigger = B
 
   APP_STATE.saveToFile();
   BootDiag::markSleepStage(BootDiag::SleepStage::StatePersisted);
+  // The sleep screen is already on the panel, so this costs no perceived
+  // latency — it just keeps the device awake a few more seconds. The image it
+  // fetches is the one shown at the NEXT sleep. Move this above goToSleep() to
+  // trade that lag for a few seconds of delay after the sleep gesture instead.
+  WallpaperSync::syncAtSleep();
+
   // Tear down WiFi so the modem power domain isn't held alive across deep sleep.
   // Wake from deep sleep is effectively a chip reset, so no state needs to survive.
   if (WiFi.getMode() != WIFI_MODE_NULL) {

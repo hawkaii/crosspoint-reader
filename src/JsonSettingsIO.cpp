@@ -34,6 +34,9 @@ constexpr size_t MAX_PASSWORD_LENGTH = 64;
 bool JsonSettingsIO::saveState(const CrossPointState& s, const char* path) {
   JsonDocument doc;
   doc["openEpubPath"] = s.openEpubPath;
+  doc["wallpaperVersion"] = s.wallpaperVersion;
+  doc["wallpaperResolvedHost"] = s.wallpaperResolvedHost;
+  doc["wallpaperResolvedIp"] = s.wallpaperResolvedIp;
   doc["lastSleepImage"] = s.lastSleepImage;
   doc["readerActivityLoadCount"] = s.readerActivityLoadCount;
   doc["lastSleepFromReader"] = s.lastSleepFromReader;
@@ -95,6 +98,9 @@ bool JsonSettingsIO::loadState(CrossPointState& s, const char* json) {
   }
 
   s.openEpubPath = doc["openEpubPath"] | std::string("");
+  s.wallpaperVersion = doc["wallpaperVersion"] | std::string("");
+  s.wallpaperResolvedHost = doc["wallpaperResolvedHost"] | std::string("");
+  s.wallpaperResolvedIp = doc["wallpaperResolvedIp"] | std::string("");
   s.lastSleepImage = doc["lastSleepImage"] | SIZE_MAX;
   s.readerActivityLoadCount = doc["readerActivityLoadCount"] | (uint8_t)0;
   s.lastSleepFromReader = doc["lastSleepFromReader"] | false;

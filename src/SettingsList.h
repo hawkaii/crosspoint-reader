@@ -193,6 +193,11 @@ inline std::vector<SettingInfo> buildSettingsList() {
                                        {StrId::STR_NONE_OPT, StrId::STR_FILTER_CONTRAST, StrId::STR_INVERTED,
                                         StrId::STR_FILTER_ADAPTIVE, StrId::STR_FILTER_EQUALIZE},
                                        "sleepScreenCoverFilter", StrId::STR_CAT_DISPLAY));
+  settings.push_back(SettingInfo::Toggle(StrId::STR_WALLPAPER_SYNC, &CrossPointSettings::wallpaperSyncEnabled,
+                                         "wallpaperSyncEnabled", StrId::STR_CAT_DISPLAY));
+  settings.push_back(SettingInfo::String(StrId::STR_WALLPAPER_SYNC_URL, &SETTINGS.wallpaperSyncUrl[0],
+                                         sizeof(SETTINGS.wallpaperSyncUrl), "wallpaperSyncUrl",
+                                         StrId::STR_CAT_DISPLAY));
   settings.push_back(SettingInfo::Enum(StrId::STR_SLEEP_COVER_OVERLAY, &CrossPointSettings::sleepCoverOverlay,
                                        {StrId::STR_OVERLAY_OFF, StrId::STR_OVERLAY_WHITE, StrId::STR_OVERLAY_GRAY,
                                         StrId::STR_OVERLAY_BLACK},

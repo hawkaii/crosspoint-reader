@@ -236,6 +236,10 @@ class CrossPointSettings {
   uint8_t sleepScreenCoverMode = FIT;
   // Sleep screen cover filter
   uint8_t sleepScreenCoverFilter = NO_FILTER;
+  // Wallpaper sync: pull /sleep.bmp from a host on the LAN at sleep entry.
+  // Off by default — it is the only feature that brings WiFi up on its own.
+  uint8_t wallpaperSyncEnabled = 0;
+  char wallpaperSyncUrl[128] = "";
   // Apply information overlay with reading progress on sleep cover
   uint8_t sleepCoverOverlay = 0;
   // Sleep image pick mode (random vs sequential walk-through)

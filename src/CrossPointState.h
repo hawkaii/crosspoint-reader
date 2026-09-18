@@ -109,6 +109,9 @@ class CrossPointState {
 
  public:
   std::string openEpubPath;
+  std::string wallpaperVersion;
+  std::string wallpaperResolvedHost;
+  std::string wallpaperResolvedIp;
   size_t lastSleepImage = SIZE_MAX;  // SIZE_MAX = unset sentinel
   uint8_t readerActivityLoadCount = 0;
   bool lastSleepFromReader = false;
